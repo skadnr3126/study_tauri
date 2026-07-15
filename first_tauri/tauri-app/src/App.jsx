@@ -77,6 +77,8 @@ function App() {
       createdAt: new Date().toISOString(),
     };
     const nextNotes = [note, ...notes];
+    console.log("Adding note:", note);
+    
 
     setNotes(nextNotes);
     setDraft(emptyDraft);
@@ -103,6 +105,8 @@ function App() {
           <strong>{notes.length}</strong>
           <span>saved ideas</span>
         </div>
+        
+        
       </header>
 
       <section className="workspace">
@@ -140,6 +144,7 @@ function App() {
               value={draft.tags}
               onChange={updateDraft}
               placeholder="product, ux, later"
+              type="text"
             />
           </label>
 
