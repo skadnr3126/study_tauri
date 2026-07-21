@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "id": "flow_853a5a48ed98",
+  "title": "asdasd",
+  "root": {
+    "id": "root_72da98729cd4",
+    "items": [
+      "blk_16cebad08a6a",
+      "blk_ae8ead35f631",
+      "blk_e02bb5e4cd1a"
+    ],
+    "branches": {
+      "blk_ae8ead35f631": [
+        {
+          "id": "branch_92b5b6e855a5",
+          "items": [
+            "blk_110dd8c38a0f"
+          ],
+          "branches": {}
+        }
+      ]
+    }
+  }
+}

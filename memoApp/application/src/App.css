@@ -90,7 +90,10 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 }
 .flow-title-input:focus { border-bottom: 2px solid #5e9c6c; box-shadow: none; }
 .runtime-badge { padding: 6px 9px; border: 1px solid #d4d9cd; border-radius: 999px; color: #617267; background: rgba(255,255,252,.7); font-size: .65rem; font-weight: 700; letter-spacing: .08em; white-space: nowrap; }
+.runtime-badge.has-error { border-color: #d69a92; color: #9a3b35; background: #fff4f2; }
 .command-status { max-width: 1400px; margin: 0 auto 20px; color: #617267; font-size: .78rem; }
+.storage-error { max-width: 1400px; margin: 0 auto 14px; color: #9a3b35; font-size: .78rem; line-height: 1.45; }
+.storage-retry { margin-left: 6px; padding: 2px 6px; border: 1px solid #d69a92; border-radius: 5px; color: inherit; background: #fff4f2; font-size: inherit; font-weight: 700; }
 
 .flow-work-area { max-width: 1400px; margin: 0 auto; }
 .flow-work-area.has-editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, 390px); align-items: start; gap: 20px; }
@@ -155,6 +158,17 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .empty-workspace { max-width: 540px; margin: 20vh auto; color: #4f5e53; }
 .empty-workspace h2 { margin-top: 8px; color: #203027; font-size: clamp(2rem,5vw,3.3rem); line-height: 1.2; }
 .empty-workspace p:last-child { max-width: 440px; line-height: 1.7; }
+
+.workspace-setup { display: grid; align-content: center; min-height: 100vh; max-width: 620px; margin: 0 auto; padding: 32px; color: #4f5e53; }
+.workspace-setup h2 { margin: 8px 0 12px; color: #203027; font-family: Georgia, "Noto Serif KR", serif; font-size: clamp(2rem, 5vw, 3.3rem); font-weight: 500; line-height: 1.2; }
+.workspace-setup > p { max-width: 510px; line-height: 1.7; }
+.workspace-setup code { padding: 1px 5px; border-radius: 4px; color: #31583a; background: #e7eee5; }
+.workspace-setup-form { display: grid; gap: 8px; margin-top: 18px; }
+.workspace-setup-form label { color: #54655a; font-size: .78rem; font-weight: 750; }
+.workspace-setup-form input { width: 100%; padding: 10px 11px; border: 1px solid #d4d8cf; border-radius: 8px; outline: none; color: #202522; background: #fffefb; }
+.workspace-setup-form input:focus { border-color: #5e9c6c; box-shadow: 0 0 0 3px rgba(94, 156, 108, .14); }
+.workspace-setup-form button { justify-self: start; margin-top: 4px; }
+.workspace-setup-note { color: #728077; font-size: .76rem; }
 
 @media (max-width: 840px) {
   .app-shell { grid-template-columns: 1fr; }

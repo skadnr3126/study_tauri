@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BlockId,
   BranchId,
@@ -15,9 +15,16 @@ import {
   updateBlock,
   validateWorkspace,
 } from "./domain/flow";
-import { FlowCanvas, NodePosition } from "./components/FlowCanvas";
+import { FlowCanvas } from "./components/FlowCanvas";
 import { NodeEditor } from "./components/NodeEditor";
 import { Sidebar } from "./components/Sidebar";
+import {
+  NodePositionsByFlow,
+  chooseNativeWorkspace,
+  isDesktopRuntime,
+  openNativeWorkspace,
+  saveNativeWorkspace,
+} from "./storage/repository";
 import "./App.css";
 
 function App() {
@@ -27,11 +34,96 @@ function App() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftMarkdown, setDraftMarkdown] = useState("");
-  const [nodePositionsByFlow, setNodePositionsByFlow] = useState<Record<string, Record<BlockId, NodePosition | undefined>>>({});
+  const [nodePositionsByFlow, setNodePositionsByFlow] = useState<NodePositionsByFlow>({});
+  const [workspaceRoot, setWorkspaceRoot] = useState<string>();
+  const [storageState, setStorageState] = useState<"checking" | "needs-workspace" | "loading" | "ready" | "saving" | "error">("checking");
+  const [storageError, setStorageError] = useState<string>();
+  const hydratedRef = useRef(false);
+  const saveSequenceRef = useRef(Promise.resolve());
 
   const activeFlow = workspace.activeFlowId ? workspace.flows.get(workspace.activeFlowId) : undefined;
   const editingBlock = editingBlockId ? workspace.blocks.get(editingBlockId) : undefined;
   const validationErrors = useMemo(() => validateWorkspace(workspace), [workspace]);
+
+  const openWorkspace = async (path: string) => {
+    setStorageState("loading");
+    setStorageError(undefined);
+    hydratedRef.current = false;
+    try {
+      const loaded = await openNativeWorkspace(path.trim());
+      setWorkspace(loaded.workspace);
+      setNodePositionsByFlow(loaded.nodePositionsByFlow);
+      setWorkspaceRoot(loaded.workspaceRoot);
+      setEditingBlockId(undefined);
+      setIsEditorOpen(false);
+      setMessage(loaded.recoveryNotice ?? "작업공간을 열었습니다.");
+      setStorageState("ready");
+      hydratedRef.current = true;
+    } catch (error) {
+      setStorageError(error instanceof Error ? error.message : "작업공간을 열 수 없습니다.");
+      setStorageState("error");
+    }
+  };
+
+  const chooseWorkspace = async () => {
+    setStorageError(undefined);
+    try {
+      const selected = await chooseNativeWorkspace();
+      if (!selected) {
+        setStorageState("needs-workspace");
+        return;
+      }
+      await openWorkspace(selected);
+    } catch (error) {
+      setStorageError(error instanceof Error ? error.message : "폴더 선택 창을 열 수 없습니다.");
+      setStorageState("error");
+    }
+  };
+
+  const retrySave = async () => {
+    if (!workspaceRoot) return;
+    setStorageState("saving");
+    try {
+      await saveNativeWorkspace(workspaceRoot, workspace, nodePositionsByFlow);
+      setStorageState("ready");
+      setStorageError(undefined);
+      setMessage("저장 완료");
+    } catch (error) {
+      setStorageError(error instanceof Error ? error.message : "저장하지 못했습니다.");
+      setStorageState("error");
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isDesktopRuntime()) {
+      hydratedRef.current = true;
+      setStorageState("ready");
+      return () => { cancelled = true; };
+    }
+    if (!cancelled) setStorageState("needs-workspace");
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!workspaceRoot || !hydratedRef.current || !isDesktopRuntime()) return;
+    const timer = window.setTimeout(() => {
+      setStorageState("saving");
+      saveSequenceRef.current = saveSequenceRef.current
+        .catch(() => undefined)
+        .then(() => saveNativeWorkspace(workspaceRoot, workspace, nodePositionsByFlow))
+        .then(() => {
+          setStorageState("ready");
+          setStorageError(undefined);
+        })
+        .catch((error) => {
+          setStorageError(error instanceof Error ? error.message : "저장하지 못했습니다.");
+          setStorageState("error");
+        });
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [workspace, workspaceRoot, nodePositionsByFlow]);
+
   const runCommand = <T extends CommandResult>(label: string, operation: (current: WorkspaceState) => T): T | undefined => {
     try {
       const result = operation(workspace);
@@ -108,6 +200,31 @@ function App() {
     setEditingBlockId(undefined);
   };
 
+  if (storageState === "checking" || storageState === "loading") {
+    return <main className="workspace-setup"><p className="eyebrow">FLOW MEMO</p><h2>작업공간을 여는 중입니다.</h2><p>저장된 Flow와 Block을 안전하게 불러오고 있습니다.</p></main>;
+  }
+
+  if (storageState === "needs-workspace" || (!workspaceRoot && storageState === "error")) {
+    return (
+      <main className="workspace-setup">
+        <p className="eyebrow">FLOW MEMO · LOCAL FILES</p>
+        <h2>생각을 저장할 폴더를 선택하세요.</h2>
+        <p>선택한 폴더 안에 <code>.memo</code> 작업공간을 만들고, Block과 Flow를 파일로 저장합니다.</p>
+        <button className="button button-primary workspace-picker-button" type="button" onClick={() => void chooseWorkspace()}>폴더 선택</button>
+        {storageError && <p className="storage-error" role="alert">{storageError}</p>}
+        <p className="workspace-setup-note">브라우저 개발 모드에서는 기존처럼 메모리에서만 동작합니다.</p>
+      </main>
+    );
+  }
+
+  const storageBadge = !isDesktopRuntime()
+    ? "IN MEMORY · 저장되지 않음"
+    : storageState === "saving"
+      ? "저장 중"
+      : storageState === "error"
+        ? "저장 실패"
+        : "저장됨";
+
   return (
     <main className="app-shell">
       <Sidebar
@@ -132,10 +249,11 @@ function App() {
               </div>
               <div className="workspace-header-actions">
                 <button className="button button-quiet editor-toggle" type="button" onClick={() => setIsEditorOpen((current) => !current)}>{isEditorOpen ? "편집 창 닫기" : "편집 창 열기"}</button>
-                <div className="runtime-badge">IN MEMORY · 저장되지 않음</div>
+                <div className={`runtime-badge ${storageState === "error" ? "has-error" : ""}`}>{storageBadge}</div>
               </div>
             </header>
             <div className="command-status" role="status">{message}</div>
+            {storageError && <div className="storage-error" role="alert">{storageError} <button className="storage-retry" type="button" onClick={() => void retrySave()}>다시 시도</button></div>}
             <div className={`flow-work-area ${isEditorOpen ? "has-editor" : ""}`}>
               <FlowCanvas
                 workspace={workspace}
